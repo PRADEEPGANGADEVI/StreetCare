@@ -28,10 +28,17 @@ function PageLoader() {
 function App() {
   return (
     <Router>
+      {/* Accessible skip-link for keyboard & screen reader users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2.5 focus:bg-orange-600 focus:text-white focus:font-bold focus:rounded-xl focus:shadow-2xl focus:outline-none focus:ring-2 focus:ring-white"
+      >
+        Skip to main content
+      </a>
       <ScrollToTop />
       <div className="min-h-screen flex flex-col bg-slate-50 text-gray-900 font-sans selection:bg-orange-500 selection:text-white">
         <Navbar />
-        <main className="flex-grow" id="main-content">
+        <main className="flex-grow focus:outline-none" id="main-content" tabIndex="-1">
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Home />} />
