@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <div className="space-y-16 pb-20">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-orange-500/10 via-amber-500/5 to-transparent pt-12 pb-20">
+      <section className="relative overflow-hidden bg-gradient-to-b from-orange-500/10 via-amber-500/5 to-transparent pt-12 pb-20" aria-label="Hero - StreetCare India">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold tracking-wide uppercase">
@@ -47,7 +47,7 @@ export default function Home() {
       </section>
 
       {/* Emergency Helplines Quick Access */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Emergency helplines">
         <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
             <div>
@@ -80,7 +80,7 @@ export default function Home() {
       </section>
 
       {/* How it Works */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="How StreetCare works">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="text-3xl font-black text-gray-900">How StreetCare Saves Lives</h2>
           <p className="text-gray-600 mt-2">A simple 3-step action for every citizen that bridges the gap to rehabilitation.</p>
@@ -135,7 +135,12 @@ export default function Home() {
           {INITIAL_REPORTS.map((r) => (
             <div key={r.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
               <div className="relative h-44 bg-gray-100">
-                <img src={r.photo} alt={r.personType} className="w-full h-full object-cover" />
+                <img
+                    src={r.photo}
+                    alt={`${r.personType}, estimated age ${r.estimatedAge}, in ${r.location.city}`}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
                 <div className="absolute top-3 right-3">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold shadow-sm ${
                     r.urgency === 'Critical' ? 'bg-red-600 text-white' :
