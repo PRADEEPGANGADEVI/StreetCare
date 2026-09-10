@@ -11,6 +11,7 @@ const MapPage = lazy(() => import('./pages/MapPage'));
 const NGODashboard = lazy(() => import('./pages/NGODashboard'));
 const NGORegister = lazy(() => import('./pages/NGORegister'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const TrackCase = lazy(() => import('./pages/TrackCase'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Full-screen loading spinner shown while pages load
@@ -47,9 +48,12 @@ function App() {
               <Route path="/ngo" element={<NGODashboard />} />
               <Route path="/ngo-register" element={<NGORegister />} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/track" element={<TrackCase />} />
+              <Route path="/track/:caseId" element={<TrackCase />} />
               {/* 404 catch-all route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+
           </Suspense>
         </main>
 

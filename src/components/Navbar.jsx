@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Heart, MapPin, PlusCircle, Shield, Building2, Menu, X } from 'lucide-react';
+import { Heart, MapPin, PlusCircle, Shield, Building2, Menu, X, Compass } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,11 +9,13 @@ export default function Navbar() {
   const navLinks = [
     { name: 'Home', path: '/', icon: Heart },
     { name: 'Report Someone', path: '/report', icon: PlusCircle, highlight: true },
+    { name: 'Track Status', path: '/track', icon: Compass },
     { name: 'Live Map', path: '/map', icon: MapPin },
     { name: 'NGO Dashboard', path: '/ngo', icon: Building2 },
     { name: 'NGO Portal', path: '/ngo-register', icon: Building2 },
     { name: 'Admin', path: '/admin', icon: Shield },
   ];
+
 
   const isActive = (path) => location.pathname === path;
 

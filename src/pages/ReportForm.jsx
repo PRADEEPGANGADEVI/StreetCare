@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Camera, MapPin, AlertCircle, CheckCircle2, Send, Building2,
-  Upload, Loader2, AlertTriangle, User, Phone
+  Upload, Loader2, AlertTriangle, User, Phone, ShieldCheck,
+  ExternalLink, Truck, Copy, Check, Compass, ArrowRight, FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { INITIAL_NGOS } from '../data/mockData';
+import { getGovtVerifiedNGOs, saveNewReport } from '../data/mockData';
 
 const STEPS = ['Location', 'Person Details', 'NGO & Reporter'];
 const MAX_CONDITION_CHARS = 400;
@@ -13,9 +15,12 @@ const validatePhone = (phone) =>
   phone === '' || /^[6-9]\d{9}$/.test(phone.replace(/[\s\-+91]/g, ''));
 
 export default function ReportForm() {
+  const govtVerifiedNGOs = getGovtVerifiedNGOs();
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedCase, setSubmittedCase] = useState(null);
+  const [copiedId, setCopiedId] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [errors, setErrors] = useState({});
 
@@ -29,7 +34,7 @@ export default function ReportForm() {
     lat: null,
     lng: null,
     condition: '',
-    selectedNGO: INITIAL_NGOS[0]?.name || '',
+    selectedNGO: govtVerifiedNGOs[0]?.name || '',
     reporterName: '',
     reporterContact: '',
     photoPreview: null,
@@ -122,14 +127,75 @@ export default function ReportForm() {
     }
     setSubmitting(true);
     setTimeout(() => {
+      const selectedNGOData = govtVerifiedNGOs.find((n) => n.name === formData.selectedNGO) || govtVerifiedNGOs[0];
+      const caseId = 'SC-2026-' + Math.floor(1000 + Math.random() * 9000);
+      
+      const newCase = {
+        id: caseId,
+        personType: formData.personType,
+        estimatedAge: formData.estimatedAge || 'Unknown',
+        condition: formData.condition,
+        location: {
+          address: formData.address || (formData.lat ? `GPS: ${formData.lat}, ${formData.lng}` : 'Reported Location'),
+          city: formData.city,
+          landmark: formData.landmark,
+          lat: formData.lat || 28.6139,
+          lng: formData.lng || 77.2090,
+        },
+        photo: formData.photoPreview || 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=400&auto=format&fit=crop&q=60',
+        reportedAt: 'Just now',
+        status: 'Rescue Van Dispatched',
+        assignedNGO: selectedNGOData.name,
+        assignedNGOData: selectedNGOData,
+        reportedBy: formData.reporterName ? `Citizen (${formData.reporterName})` : 'Citizen Reporter',
+        urgency: formData.urgency,
+        currentStage: 2,
+        timeline: [
+          {
+            title: 'Report Geotagged & Authenticated',
+            time: 'Just now',
+            completed: true,
+            note: `Coordinates logged for ${formData.city}. Case assigned ID ${caseId}.`
+          },
+          {
+            title: `Transmitted to Verified NGO: ${selectedNGOData.name}`,
+            time: 'Just now',
+            completed: true,
+            note: `Official NITI Aayog Darpan: ${selectedNGOData.darpanId} • MoSJE: ${selectedNGOData.mosjeRegNo}`
+          },
+          {
+            title: `Rescue Van ${selectedNGOData.rescueVan?.vanNumber || 'Unit'} Dispatched`,
+            time: 'In Progress',
+            completed: true,
+            note: `Field team mobilized. Driver contact: ${selectedNGOData.rescueVan?.driverContact || selectedNGOData.phone}. ETA ~15-20 mins.`
+          },
+          {
+            title: 'Shelter Admission & Medical Rehabilitation',
+            time: 'Pending field arrival',
+            completed: false,
+            note: `Admission coordinated at registered shelter: ${selectedNGOData.registeredAddress}`
+          }
+        ]
+      };
+
+      saveNewReport(newCase);
+      setSubmittedCase(newCase);
       setSubmitting(false);
       setSubmitted(true);
-      toast.success('Report submitted! Nearby NGO notified.');
-    }, 1200);
+      toast.success(`Case ${caseId} registered and dispatched!`);
+    }, 1000);
+  };
+
+  const copyCaseId = (id) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(true);
+    toast.success('Case Tracking ID copied!');
+    setTimeout(() => setCopiedId(false), 2500);
   };
 
   const resetForm = () => {
     setSubmitted(false);
+    setSubmittedCase(null);
     setCurrentStep(0);
     setErrors({});
     setFormData({
@@ -142,7 +208,7 @@ export default function ReportForm() {
       lat: null,
       lng: null,
       condition: '',
-      selectedNGO: INITIAL_NGOS[0]?.name || '',
+      selectedNGO: govtVerifiedNGOs[0]?.name || '',
       reporterName: '',
       reporterContact: '',
       photoPreview: null,
@@ -150,49 +216,177 @@ export default function ReportForm() {
   };
 
   // ── Success Screen ──────────────────────────────────────────────────────────
-  if (submitted) {
+  if (submitted && submittedCase) {
+    const assignedNGO = submittedCase.assignedNGOData;
+
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-          <CheckCircle2 className="w-12 h-12" />
-        </div>
-        <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-widest mb-3">
-          Rescue Dispatched
-        </span>
-        <h2 className="text-3xl font-black text-gray-900 mb-3">Rescue Request Sent!</h2>
-        <p className="text-gray-600 text-base mb-6 leading-relaxed max-w-lg mx-auto">
-          Thank you for being a compassionate citizen. An automated alert has been routed to{' '}
-          <strong>{formData.selectedNGO}</strong> and the local social welfare rescue team.
-        </p>
+      <div className="max-w-3xl mx-auto px-4 py-12 space-y-8 animate-fadeIn">
+        {/* Success Alert Banner */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-emerald-500 shadow-xl text-center space-y-4">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+            <CheckCircle2 className="w-10 h-10" />
+          </div>
 
-        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 text-left text-sm max-w-md mx-auto space-y-2 mb-8">
-          <div className="font-bold text-orange-900 flex items-center gap-1.5">
-            <Building2 className="w-4 h-4 text-orange-600" />
-            Assigned Rehabilitation Partner:
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black uppercase tracking-wider">
+            <ShieldCheck className="w-4 h-4 text-emerald-700" />
+            Alert Successfully Transmitted to Government-Verified Agency
           </div>
-          <div className="text-gray-700">{formData.selectedNGO}</div>
-          <div className="text-xs text-gray-500 pt-1">
-            Location: {formData.address || `${formData.lat}, ${formData.lng}`}
-          </div>
-          <div className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Status: Dispatched to Rescue Van
+
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+            Rescue Dispatched to Government-Empanelled NGO
+          </h1>
+
+          <p className="text-gray-600 text-sm max-w-xl mx-auto leading-relaxed">
+            Your report has been geotagged and securely assigned to <strong>{assignedNGO?.name}</strong>. A dedicated rescue unit has been dispatched in compliance with Ministry of Social Justice &amp; Empowerment (MoSJE) shelter standards.
+          </p>
+
+          {/* Unique Case Tracking ID Box */}
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 max-w-md mx-auto flex items-center justify-between gap-3">
+            <div className="text-left">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500">Your Case Tracking ID</span>
+              <span className="text-xl sm:text-2xl font-black font-mono text-orange-700 tracking-tight">{submittedCase.id}</span>
+            </div>
+            <button
+              onClick={() => copyCaseId(submittedCase.id)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-orange-200 hover:border-orange-400 text-orange-700 text-xs font-bold transition-all shadow-sm active:scale-95"
+              aria-label="Copy Tracking ID"
+            >
+              {copiedId ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              {copiedId ? 'Copied' : 'Copy ID'}
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-center gap-3">
+        {/* Complete Receiver NGO Government Accreditation Dossier */}
+        {assignedNGO && (
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full inline-block mb-1">
+                  100% Government Verified &amp; Empanelled
+                </span>
+                <h2 className="text-xl font-black text-gray-900">{assignedNGO.name}</h2>
+                <p className="text-xs text-gray-500">
+                  Accredited by: <strong>{assignedNGO.verificationAgency}</strong>
+                </p>
+              </div>
+              <a
+                href="https://ngodarpan.gov.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold transition-all"
+              >
+                NITI Aayog Darpan Portal <ExternalLink className="w-3.5 h-3.5 text-orange-600" />
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">NITI Aayog Darpan ID</span>
+                <div className="font-mono font-bold text-gray-900 text-sm">{assignedNGO.darpanId}</div>
+                <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Government Authenticated
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">MoSJE SMILE Empanelment</span>
+                <div className="font-mono font-bold text-gray-900 text-sm">{assignedNGO.mosjeRegNo}</div>
+                <div className="text-[11px] text-orange-600 font-semibold">Beggary Rehabilitation Scheme</div>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Income Tax Exemption</span>
+                <div className="font-bold text-gray-900 text-sm">12A &amp; 80G Certified</div>
+                <div className="text-[11px] text-gray-500 truncate">{assignedNGO.taxExemption}</div>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">State Shelter License</span>
+                <div className="font-bold text-gray-900 text-sm">{assignedNGO.shelterLicense}</div>
+                <div className="text-[11px] text-gray-600">Capacity: <strong>{assignedNGO.shelterCapacity} Beds</strong></div>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Assigned Rescue Van</span>
+                <div className="font-mono font-bold text-gray-900 text-sm">{assignedNGO.rescueVan?.vanNumber}</div>
+                <div className="text-[11px] text-emerald-700 font-semibold">Driver: {assignedNGO.rescueVan?.driverContact}</div>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Nodal Officer In-Charge</span>
+                <div className="font-bold text-gray-900 text-sm">{assignedNGO.nodalOfficer?.name}</div>
+                <div className="text-[11px] text-gray-600">{assignedNGO.nodalOfficer?.designation}</div>
+              </div>
+            </div>
+
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="font-bold text-orange-950 block">Official NGO Helpline:</span>
+                <span className="text-gray-700">{assignedNGO.registeredAddress}</span>
+              </div>
+              <a
+                href={`tel:${assignedNGO.phone}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all self-start sm:self-auto"
+              >
+                <Phone className="w-3.5 h-3.5" /> Call {assignedNGO.phone}
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Live Rescue Timeline */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black text-gray-900">Live Rescue Process Tracking</h2>
+            <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-3 py-1 rounded-full flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live
+            </span>
+          </div>
+
+          <div className="relative pl-6 space-y-6 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-emerald-500 before:to-gray-200">
+            {submittedCase.timeline.map((item, idx) => (
+              <div key={idx} className="relative">
+                <div className={`absolute -left-6 top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  item.completed
+                    ? 'bg-emerald-600 text-white shadow-sm ring-4 ring-white'
+                    : 'bg-white border-2 border-gray-300 text-gray-400 ring-4 ring-white'
+                }`}>
+                  {item.completed ? <CheckCircle2 className="w-3.5 h-3.5" /> : idx + 1}
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <div className="flex items-center justify-between text-xs font-bold text-gray-900">
+                    <span>{item.title}</span>
+                    <span className="text-gray-400 text-[11px] font-normal">{item.time}</span>
+                  </div>
+                  {item.note && <p className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">{item.note}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            to={`/track/${submittedCase.id}`}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 text-white font-bold text-sm shadow-md shadow-orange-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Compass className="w-4 h-4" />
+            Track Live Status Portal
+          </Link>
           <button
             onClick={resetForm}
-            className="px-6 py-3 rounded-xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 transition-colors"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white border border-gray-300 hover:border-gray-400 text-gray-700 font-bold text-sm transition-all"
           >
             Submit Another Report
           </button>
-          <a
-            href="/map"
-            className="px-6 py-3 rounded-xl bg-white border border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
+          <Link
+            to="/"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-gray-500 hover:text-gray-800 text-sm font-semibold transition-colors"
           >
-            View on Live Map
-          </a>
+            Return to Home
+          </Link>
         </div>
       </div>
     );
@@ -505,24 +699,75 @@ export default function ReportForm() {
           {currentStep === 2 && (
             <div className="space-y-5">
               <div>
-                <label htmlFor="selectedNGO" className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-orange-600" />
-                  Alert Nearest Verified Rehabilitation NGO
+                <label htmlFor="selectedNGO" className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-orange-600" />
+                    Government-Verified Rescue Partner
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> NITI Aayog &amp; MoSJE Empanelled Only
+                  </span>
                 </label>
                 <select
                   id="selectedNGO"
                   value={formData.selectedNGO}
                   onChange={(e) => update('selectedNGO', e.target.value)}
-                  className="form-input bg-white font-medium text-gray-800"
+                  className="form-input bg-white font-semibold text-gray-800"
                 >
-                  {INITIAL_NGOS.map((ngo) => (
+                  {govtVerifiedNGOs.map((ngo) => (
                     <option key={ngo.id} value={ngo.name}>
-                      {ngo.name} — {ngo.city} ({ngo.tier} Tier Verified)
+                      ✓ {ngo.name} — {ngo.city} (Darpan: {ngo.darpanId})
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  NGOs receive immediate dashboard notifications and SMS dispatch alerts with location coordinates.
+
+                {/* Live Government Credential Preview for Selected NGO */}
+                {(() => {
+                  const selected = govtVerifiedNGOs.find((n) => n.name === formData.selectedNGO) || govtVerifiedNGOs[0];
+                  if (!selected) return null;
+                  return (
+                    <div className="mt-3 bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          Authenticated Government Credentials
+                        </span>
+                        <span className="text-[10px] font-black uppercase text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                          {selected.tier} Tier Verified
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+                        <div>
+                          <span className="text-gray-500 block">NITI Aayog Darpan:</span>
+                          <strong className="font-mono text-gray-900">{selected.darpanId}</strong>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block">MoSJE SMILE Reg:</span>
+                          <strong className="font-mono text-gray-900">{selected.mosjeRegNo}</strong>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block">Tax Exemption:</span>
+                          <strong className="text-gray-900">12A &amp; 80G Certified</strong>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block">Nodal Officer:</span>
+                          <strong className="text-gray-900">{selected.nodalOfficer?.name}</strong>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block">Rescue Van Fleet:</span>
+                          <strong className="text-gray-900">{selected.rescueVan?.vanNumber}</strong>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block">Shelter Capacity:</span>
+                          <strong className="text-gray-900">{selected.shelterCapacity} Beds</strong>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <p className="text-[11px] text-gray-500 mt-2">
+                  🔒 Only accredited organizations with verified NITI Aayog registration, dedicated rescue vans, and MoSJE shelter licenses receive citizen dispatch notifications.
                 </p>
               </div>
 

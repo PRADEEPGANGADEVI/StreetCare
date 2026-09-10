@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MapPin, ShieldCheck, PhoneCall, Users, ArrowRight, CheckCircle2, AlertTriangle, Building2 } from 'lucide-react';
+import { Heart, MapPin, ShieldCheck, PhoneCall, Users, ArrowRight, CheckCircle2, AlertTriangle, Building2, Compass } from 'lucide-react';
 import { EMERGENCY_NUMBERS, INITIAL_REPORTS } from '../data/mockData';
 
 export default function Home() {
@@ -10,15 +10,15 @@ export default function Home() {
       <section className="relative overflow-hidden bg-gradient-to-b from-orange-500/10 via-amber-500/5 to-transparent pt-12 pb-20" aria-label="Hero - StreetCare India">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold tracking-wide uppercase">
-              <Heart className="w-3.5 h-3.5 fill-orange-600" />
-              Empowering Compassionate Citizens Across India
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-100/80 text-orange-800 text-xs font-bold uppercase tracking-wider shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-orange-600 animate-pulse"></span>
+              MoSJE SMILE Beggary Scheme Aligned
             </div>
             
             <h1 className="text-4xl sm:text-6xl font-black text-gray-900 tracking-tight leading-tight">
-              See someone in need on the street?{' '}
+              See Someone in Distress?{' '}
               <span className="bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-                Don't look away. Connect them to care.
+                Report &amp; Rescue.
               </span>
             </h1>
 
@@ -26,7 +26,7 @@ export default function Home() {
               StreetCare helps you capture a photo, pinpoint their exact location, and immediately notify verified local rehabilitation centers and government-backed shelters under India's <strong>SMILE scheme</strong>.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <Link
                 to="/report"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-base font-bold text-white bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 shadow-lg shadow-orange-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -35,11 +35,18 @@ export default function Home() {
                 Report Someone in Need Now
               </Link>
               <Link
+                to="/track"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl text-base font-bold text-gray-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 shadow-sm transition-all"
+              >
+                <Compass className="w-5 h-5 text-orange-600" />
+                Track Case Progress
+              </Link>
+              <Link
                 to="/map"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl text-base font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-sm transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl text-base font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-sm transition-all"
               >
                 <MapPin className="w-5 h-5 text-orange-600" />
-                View Live Rescue Map
+                Live Map
               </Link>
             </div>
           </div>
