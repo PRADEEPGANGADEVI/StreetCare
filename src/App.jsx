@@ -13,6 +13,8 @@ const NGORegister = lazy(() => import('./pages/NGORegister'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const TrackCase = lazy(() => import('./pages/TrackCase'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const NGOTracker = lazy(() => import('./pages/NGOTracker'));
+const NGOProximity = lazy(() => import('./pages/NGOProximity'));
 
 // Full-screen loading spinner shown while pages load
 function PageLoader() {
@@ -48,6 +50,7 @@ function App() {
               <Route path="/ngo" element={<NGODashboard />} />
               <Route path="/ngo-register" element={<NGORegister />} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/proximity" element={<NGOProximity />} />
               <Route path="/track" element={<TrackCase />} />
               <Route path="/track/:caseId" element={<TrackCase />} />
               {/* 404 catch-all route */}

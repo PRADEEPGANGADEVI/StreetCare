@@ -4,7 +4,7 @@ import {
   Search, ShieldCheck, CheckCircle2, Clock, MapPin, Building2, Phone,
   ExternalLink, AlertTriangle, ArrowLeft, Truck, FileText, UserCheck, Heart
 } from 'lucide-react';
-import { getAllReports, getReportById } from '../data/mockData';
+import { getAllReports, getReportById } from '../lib/db';
 
 export default function TrackCase() {
   const { caseId: paramCaseId } = useParams();
@@ -13,37 +13,50 @@ export default function TrackCase() {
 
   const initialId = paramCaseId || queryCaseId || 'SC-2026-8841';
   const [inputCaseId, setInputCaseId] = useState(initialId);
-  const [currentCase, setCurrentCase] = useState(() => getReportById(initialId));
+  const [currentCase, setCurrentCase] = useState(null);
   const [searchError, setSearchError] = useState('');
   const [allReports, setAllReports] = useState([]);
+  const [loadingCase, setLoadingCase] = useState(true);
 
   useEffect(() => {
-    const reports = getAllReports();
-    setAllReports(reports);
-    const found = getReportById(inputCaseId);
-    if (found) {
-      setCurrentCase(found);
-      setSearchError('');
-    }
+    getAllReports().then(setAllReports).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    setLoadingCase(true);
+    getReportById(inputCaseId)
+      .then((found) => {
+        if (found) {
+          setCurrentCase(found);
+          setSearchError('');
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingCase(false));
   }, [inputCaseId]);
 
   useEffect(() => {
-    if (paramCaseId) {
-      setInputCaseId(paramCaseId);
-      const found = getReportById(paramCaseId);
-      if (found) setCurrentCase(found);
-    }
+    if (paramCaseId) setInputCaseId(paramCaseId);
   }, [paramCaseId]);
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!inputCaseId.trim()) return;
-    const found = getReportById(inputCaseId.trim());
-    if (found) {
-      setCurrentCase(found);
-      setSearchError('');
-    } else {
-      setSearchError(`No active case found for "${inputCaseId.trim()}". Please check your Case ID.`);
+    setLoadingCase(true);
+    try {
+      const found = await getReportById(inputCaseId.trim());
+      if (found) {
+        setCurrentCase(found);
+        setSearchError('');
+      } else {
+        setCurrentCase(null);
+        setSearchError(`No active case found for "${inputCaseId.trim()}". Please check your Case ID.`);
+      }
+    } catch (err) {
+      console.error(err);
+      setSearchError('Error fetching case. Please try again.');
+    } finally {
+      setLoadingCase(false);
     }
   };
 

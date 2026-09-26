@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, ShieldCheck, FileText, CheckCircle2, Send, AlertTriangle, Info, Phone, Mail, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { submitNGORegistration } from '../lib/db';
 
 // --- Validation helpers ---
 const validatePAN = (pan) => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan.toUpperCase());
@@ -86,14 +87,20 @@ export default function NGORegister() {
 
   const prevStep = () => setCurrentStep((s) => s - 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateStep(2)) {
       toast.error('Please fix all errors before submitting.');
       return;
     }
-    setSubmitted(true);
-    toast.success('Registration submitted! Application forwarded to StreetCare verification cell.');
+    try {
+      await submitNGORegistration(formData);
+      setSubmitted(true);
+      toast.success('Registration submitted! Application forwarded to StreetCare verification cell.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Submission failed. Please try again.');
+    }
   };
 
   // ── Success Screen ──────────────────────────────────────────────────────────

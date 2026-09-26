@@ -1,18 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, CheckCircle2, Clock, MapPin, AlertCircle, Phone, ArrowRight, UserCheck, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { INITIAL_REPORTS } from '../data/mockData';
+import { getAllReports, updateReportStatus, getProposalsForNGO, updateProposalStatus } from '../lib/db';
+import { supabase } from '../lib/supabaseClient';
 
 export default function NGODashboard() {
-  const [reports, setReports] = useState(INITIAL_REPORTS);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Dashboard mode: 'cases' or 'proposals'
+  const [dashboardMode, setDashboardMode] = useState('cases');
 
-  const handleUpdateStatus = (id, newStatus) => {
-    setReports((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
-    );
-    toast.success(`Case status updated to: ${newStatus}`);
+  const [proposals, setProposals] = useState([]);
+  const [proposalsLoading, setProposalsLoading] = useState(true);
+
+  // Hardcode NGO ID for demo purposes (SPYM)
+  const CURRENT_NGO_ID = 'ngo-2';
+
+  useEffect(() => {
+    getAllReports()
+      .then(setReports)
+      .catch((err) => {
+        console.error(err);
+        toast.error('Failed to load cases from database.');
+      })
+      .finally(() => setLoading(false));
+
+    // Fetch proposals for this NGO
+    getProposalsForNGO(CURRENT_NGO_ID)
+      .then(setProposals)
+      .catch((err) => console.error(err))
+      .finally(() => setProposalsLoading(false));
+
+    // Subscribe to new proposals in real-time
+    const channel = supabase
+      .channel('dashboard-proposals')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'proposals', filter: `ngo_id=eq.${CURRENT_NGO_ID}` },
+        (payload) => {
+          const newProposal = payload.new;
+          setProposals((prev) => [newProposal, ...prev]);
+          toast.success(`New proposal received from ${newProposal.user_name}!`, {
+            icon: '🔔',
+            duration: 6000,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleProposalAction = async (id, status) => {
+    try {
+      await updateProposalStatus(id, status);
+      setProposals((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status } : p))
+      );
+      toast.success(`Proposal ${status}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update proposal.');
+    }
+  };
+
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      await updateReportStatus(id, newStatus);
+      setReports((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
+      );
+      toast.success(`Case status updated to: ${newStatus}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update status. Please try again.');
+    }
   };
 
   const activeCount = reports.filter((r) => r.status !== 'Rehabilitated & Safe').length;
@@ -66,7 +133,38 @@ export default function NGODashboard() {
         </div>
       </div>
 
-      {/* Case Management Feed & Controls */}
+      {/* Mode Toggle */}
+      <div className="flex justify-center mb-4">
+        <div className="inline-flex bg-gray-100/80 p-1.5 rounded-2xl">
+          <button
+            onClick={() => setDashboardMode('cases')}
+            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${
+              dashboardMode === 'cases'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Field Rescue Cases
+          </button>
+          <button
+            onClick={() => setDashboardMode('proposals')}
+            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              dashboardMode === 'proposals'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Direct Proposals 
+            {proposals.filter(p => p.status === 'pending').length > 0 && (
+              <span className="bg-orange-600 text-white text-[10px] px-2 py-0.5 rounded-full">
+                {proposals.filter(p => p.status === 'pending').length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {dashboardMode === 'cases' ? (
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -232,6 +330,81 @@ export default function NGODashboard() {
           </div>
         )}
       </div>
+      ) : (
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-gray-900">Direct User Proposals</h2>
+            <p className="text-xs text-gray-500">Users requesting shelter placement or verification</p>
+          </div>
+        </div>
+
+        {proposalsLoading ? (
+           <div className="text-center py-10 text-gray-500">Loading proposals...</div>
+        ) : proposals.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+            {proposals.map((proposal) => (
+              <div key={proposal.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-gray-900">{proposal.user_name}</h3>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
+                        <Phone className="w-3.5 h-3.5" />
+                        {proposal.user_phone}
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                      proposal.status === 'pending' ? 'bg-orange-50 text-orange-700' :
+                      proposal.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' :
+                      'bg-red-50 text-red-700'
+                    }`}>
+                      {proposal.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded-xl text-xs text-gray-700">
+                    <p className="font-medium text-gray-900 mb-1">Message:</p>
+                    <p>{proposal.message}</p>
+                  </div>
+                  
+                  <div className="text-[10px] text-gray-400">
+                    Received: {new Date(proposal.created_at).toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  {proposal.status === 'pending' ? (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleProposalAction(proposal.id, 'accepted')}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button 
+                        onClick={() => handleProposalAction(proposal.id, 'rejected')}
+                        className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 rounded-xl text-xs transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center text-xs font-bold text-gray-500">
+                      Action taken: {proposal.status}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+           <div className="bg-white rounded-3xl border border-gray-200 p-12 text-center text-gray-500">
+             No direct proposals received yet.
+           </div>
+        )}
+      </div>
+      )}
     </div>
   );
 }

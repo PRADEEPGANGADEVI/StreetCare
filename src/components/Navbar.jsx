@@ -10,6 +10,7 @@ export default function Navbar() {
     { name: 'Home', path: '/', icon: Heart },
     { name: 'Report Someone', path: '/report', icon: PlusCircle, highlight: true },
     { name: 'Track Status', path: '/track', icon: Compass },
+    { name: 'NGO Proximity', path: '/proximity', icon: MapPin },
     { name: 'Live Map', path: '/map', icon: MapPin },
     { name: 'NGO Dashboard', path: '/ngo', icon: Building2 },
     { name: 'NGO Portal', path: '/ngo-register', icon: Building2 },

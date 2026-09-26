@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Camera, MapPin, AlertCircle, CheckCircle2, Send, Building2,
@@ -6,7 +6,7 @@ import {
   ExternalLink, Truck, Copy, Check, Compass, ArrowRight, FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getGovtVerifiedNGOs, saveNewReport } from '../data/mockData';
+import { getVerifiedNGOs, saveReport } from '../lib/db';
 
 const STEPS = ['Location', 'Person Details', 'NGO & Reporter'];
 const MAX_CONDITION_CHARS = 400;
@@ -15,7 +15,7 @@ const validatePhone = (phone) =>
   phone === '' || /^[6-9]\d{9}$/.test(phone.replace(/[\s\-+91]/g, ''));
 
 export default function ReportForm() {
-  const govtVerifiedNGOs = getGovtVerifiedNGOs();
+  const [govtVerifiedNGOs, setGovtVerifiedNGOs] = useState([]);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -23,6 +23,21 @@ export default function ReportForm() {
   const [copiedId, setCopiedId] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [errors, setErrors] = useState({});
+
+  // Load NGOs from Supabase on mount
+  useEffect(() => {
+    getVerifiedNGOs()
+      .then((ngos) => {
+        setGovtVerifiedNGOs(ngos);
+        if (ngos.length > 0) {
+          setFormData((prev) => ({ ...prev, selectedNGO: prev.selectedNGO || ngos[0].name }));
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error('Failed to load NGO list.');
+      });
+  }, []);
 
   const [formData, setFormData] = useState({
     personType: 'Elderly Person',
@@ -34,7 +49,7 @@ export default function ReportForm() {
     lat: null,
     lng: null,
     condition: '',
-    selectedNGO: govtVerifiedNGOs[0]?.name || '',
+    selectedNGO: '',
     reporterName: '',
     reporterContact: '',
     photoPreview: null,
@@ -119,17 +134,17 @@ export default function ReportForm() {
 
   const prevStep = () => setCurrentStep((s) => s - 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateStep(2)) {
       toast.error('Please fix all errors before submitting.');
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
+    try {
       const selectedNGOData = govtVerifiedNGOs.find((n) => n.name === formData.selectedNGO) || govtVerifiedNGOs[0];
-      const caseId = 'SC-2026-' + Math.floor(1000 + Math.random() * 9000);
-      
+      const caseId = 'SC-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+
       const newCase = {
         id: caseId,
         personType: formData.personType,
@@ -145,7 +160,8 @@ export default function ReportForm() {
         photo: formData.photoPreview || 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=400&auto=format&fit=crop&q=60',
         reportedAt: 'Just now',
         status: 'Rescue Van Dispatched',
-        assignedNGO: selectedNGOData.name,
+        assignedNGO: selectedNGOData?.name ?? null,
+        assignedNGOId: selectedNGOData?.id ?? null,
         assignedNGOData: selectedNGOData,
         reportedBy: formData.reporterName ? `Citizen (${formData.reporterName})` : 'Citizen Reporter',
         urgency: formData.urgency,
@@ -158,32 +174,36 @@ export default function ReportForm() {
             note: `Coordinates logged for ${formData.city}. Case assigned ID ${caseId}.`
           },
           {
-            title: `Transmitted to Verified NGO: ${selectedNGOData.name}`,
+            title: `Transmitted to Verified NGO: ${selectedNGOData?.name}`,
             time: 'Just now',
             completed: true,
-            note: `Official NITI Aayog Darpan: ${selectedNGOData.darpanId} • MoSJE: ${selectedNGOData.mosjeRegNo}`
+            note: `Official NITI Aayog Darpan: ${selectedNGOData?.darpan_id} • MoSJE: ${selectedNGOData?.mosje_reg_no}`
           },
           {
-            title: `Rescue Van ${selectedNGOData.rescueVan?.vanNumber || 'Unit'} Dispatched`,
+            title: `Rescue Van ${selectedNGOData?.rescue_van?.vanNumber || 'Unit'} Dispatched`,
             time: 'In Progress',
             completed: true,
-            note: `Field team mobilized. Driver contact: ${selectedNGOData.rescueVan?.driverContact || selectedNGOData.phone}. ETA ~15-20 mins.`
+            note: `Field team mobilized. Driver contact: ${selectedNGOData?.rescue_van?.driverContact || selectedNGOData?.phone}. ETA ~15-20 mins.`
           },
           {
             title: 'Shelter Admission & Medical Rehabilitation',
             time: 'Pending field arrival',
             completed: false,
-            note: `Admission coordinated at registered shelter: ${selectedNGOData.registeredAddress}`
+            note: `Admission coordinated at registered shelter: ${selectedNGOData?.registered_address}`
           }
         ]
       };
 
-      saveNewReport(newCase);
+      await saveReport(newCase);
       setSubmittedCase(newCase);
-      setSubmitting(false);
       setSubmitted(true);
       toast.success(`Case ${caseId} registered and dispatched!`);
-    }, 1000);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to submit report. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const copyCaseId = (id) => {
